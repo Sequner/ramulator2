@@ -26,31 +26,33 @@ class DDR4VRR : public IDRAM, public Implementation {
     };
 
     inline static const std::map<std::string, std::vector<int>> timing_presets = {
-      //   name       rate   nBL  nCL  nRCD  nRP   nRAS  nRC   nWR  nRTP nCWL nCCDS nCCDL nRRDS nRRDL nWTRS nWTRL nFAW  nRFC nREFI nVRR nCS, tCK_ps
-      {"DDR4_1600J",  {1600,   4,  10,  10,   10,   28,   38,   12,   6,   9,    4,    5,   -1,   -1,    2,    6,   -1,  -1,  -1,  -1,   2,  1250}},
-      {"DDR4_1600K",  {1600,   4,  11,  11,   11,   28,   39,   12,   6,   9,    4,    5,   -1,   -1,    2,    6,   -1,  -1,  -1,  -1,   2,  1250}},
-      {"DDR4_1600L",  {1600,   4,  12,  12,   12,   28,   40,   12,   6,   9,    4,    5,   -1,   -1,    2,    6,   -1,  -1,  -1,  -1,   2,  1250}},
-      {"DDR4_1866L",  {1866,   4,  12,  12,   12,   32,   44,   14,   7,   10,   4,    5,   -1,   -1,    3,    7,   -1,  -1,  -1,  -1,   2,  1071}},
-      {"DDR4_1866M",  {1866,   4,  13,  13,   13,   32,   45,   14,   7,   10,   4,    5,   -1,   -1,    3,    7,   -1,  -1,  -1,  -1,   2,  1071}},
-      {"DDR4_1866N",  {1866,   4,  14,  14,   14,   32,   46,   14,   7,   10,   4,    5,   -1,   -1,    3,    7,   -1,  -1,  -1,  -1,   2,  1071}},
-      {"DDR4_2133N",  {2133,   4,  14,  14,   14,   36,   50,   16,   8,   11,   4,    6,   -1,   -1,    3,    8,   -1,  -1,  -1,  -1,   2,  937} },
-      {"DDR4_2133P",  {2133,   4,  15,  15,   15,   36,   51,   16,   8,   11,   4,    6,   -1,   -1,    3,    8,   -1,  -1,  -1,  -1,   2,  937} },
-      {"DDR4_2133R",  {2133,   4,  16,  16,   16,   36,   52,   16,   8,   11,   4,    6,   -1,   -1,    3,    8,   -1,  -1,  -1,  -1,   2,  937} },
-      {"DDR4_2400P",  {2400,   4,  15,  15,   15,   39,   54,   18,   9,   12,   4,    6,   -1,   -1,    3,    9,   -1,  -1,  -1,  -1,   2,  833} },
-      {"DDR4_2400R",  {2400,   4,  16,  16,   16,   39,   55,   18,   9,   12,   4,    6,   -1,   -1,    3,    9,   -1,  -1,  -1,  -1,   2,  833} },
-      {"DDR4_2400U",  {2400,   4,  17,  17,   17,   39,   56,   18,   9,   12,   4,    6,   -1,   -1,    3,    9,   -1,  -1,  -1,  -1,   2,  833} },
-      {"DDR4_2400T",  {2400,   4,  18,  18,   18,   39,   57,   18,   9,   12,   4,    6,   -1,   -1,    3,    9,   -1,  -1,  -1,  -1,   2,  833} },
-      {"DDR4_2666T",  {2666,   4,  17,  17,   17,   43,   60,   20,   10,  14,   4,    7,   -1,   -1,    4,    10,  -1,  -1,  -1,  -1,   2,  750} },
-      {"DDR4_2666U",  {2666,   4,  18,  18,   18,   43,   61,   20,   10,  14,   4,    7,   -1,   -1,    4,    10,  -1,  -1,  -1,  -1,   2,  750} },
-      {"DDR4_2666V",  {2666,   4,  19,  19,   19,   43,   62,   20,   10,  14,   4,    7,   -1,   -1,    4,    10,  -1,  -1,  -1,  -1,   2,  750} },
-      {"DDR4_2666W",  {2666,   4,  20,  20,   20,   43,   63,   20,   10,  14,   4,    7,   -1,   -1,    4,    10,  -1,  -1,  -1,  -1,   2,  750} },
-      {"DDR4_2933V",  {2933,   4,  19,  19,   19,   47,   66,   22,   11,  16,   4,    8,   -1,   -1,    4,    11,  -1,  -1,  -1,  -1,   2,  682} },
-      {"DDR4_2933W",  {2933,   4,  20,  20,   20,   47,   67,   22,   11,  16,   4,    8,   -1,   -1,    4,    11,  -1,  -1,  -1,  -1,   2,  682} },
-      {"DDR4_2933Y",  {2933,   4,  21,  21,   21,   47,   68,   22,   11,  16,   4,    8,   -1,   -1,    4,    11,  -1,  -1,  -1,  -1,   2,  682} },
-      {"DDR4_2933AA", {2933,   4,  22,  22,   22,   47,   69,   22,   11,  16,   4,    8,   -1,   -1,    4,    11,  -1,  -1,  -1,  -1,   2,  682} },
-      {"DDR4_3200W",  {3200,   4,  20,  20,   20,   52,   72,   24,   12,  16,   4,    8,   -1,   -1,    4,    12,  -1,  -1,  -1,  -1,   2,  625} },
-      {"DDR4_3200AA", {3200,   4,  22,  22,   22,   52,   74,   24,   12,  16,   4,    8,   -1,   -1,    4,    12,  -1,  -1,  -1,  -1,   2,  625} },
-      {"DDR4_3200AC", {3200,   4,  24,  24,   24,   52,   76,   24,   12,  16,   4,    8,   -1,   -1,    4,    12,  -1,  -1,  -1,  -1,   2,  625} },
+      //   name       rate   nAL  nBL  nCL  nRCD  nRP   nRAS  nRC   nWR  nRTP nCWL nCCDS nCCDL nRRDS nRRDL nWTRS nWTRL nFAW  nRFC nREFI nVRR nCS, tCK_ps
+      {"DDR4_1600J",  {1600,  0,   4,  10,  10,   10,   28,   38,   12,   6,   9,    4,    5,   -1,   -1,    2,    6,   -1,  -1,  -1,  -1,   2,  1250}},
+      {"DDR4_1600K",  {1600,  0,   4,  11,  11,   11,   28,   39,   12,   6,   9,    4,    5,   -1,   -1,    2,    6,   -1,  -1,  -1,  -1,   2,  1250}},
+      {"DDR4_1600L",  {1600,  0,   4,  12,  12,   12,   28,   40,   12,   6,   9,    4,    5,   -1,   -1,    2,    6,   -1,  -1,  -1,  -1,   2,  1250}},
+      {"DDR4_1866L",  {1866,  0,   4,  12,  12,   12,   32,   44,   14,   7,   10,   4,    5,   -1,   -1,    3,    7,   -1,  -1,  -1,  -1,   2,  1071}},
+      {"DDR4_1866M",  {1866,  0,   4,  13,  13,   13,   32,   45,   14,   7,   10,   4,    5,   -1,   -1,    3,    7,   -1,  -1,  -1,  -1,   2,  1071}},
+      {"DDR4_1866N",  {1866,  0,   4,  14,  14,   14,   32,   46,   14,   7,   10,   4,    5,   -1,   -1,    3,    7,   -1,  -1,  -1,  -1,   2,  1071}},
+      {"DDR4_2133N",  {2133,  0,   4,  14,  14,   14,   36,   50,   16,   8,   11,   4,    6,   -1,   -1,    3,    8,   -1,  -1,  -1,  -1,   2,  937} },
+      {"DDR4_2133P",  {2133,  0,   4,  15,  15,   15,   36,   51,   16,   8,   11,   4,    6,   -1,   -1,    3,    8,   -1,  -1,  -1,  -1,   2,  937} },
+      {"DDR4_2133R",  {2133,  0,   4,  16,  16,   16,   36,   52,   16,   8,   11,   4,    6,   -1,   -1,    3,    8,   -1,  -1,  -1,  -1,   2,  937} },
+      {"DDR4_2400P",  {2400,  0,   4,  15,  15,   15,   39,   54,   18,   9,   12,   4,    6,   -1,   -1,    3,    9,   -1,  -1,  -1,  -1,   2,  833} },
+      {"DDR4_2400R",  {2400,  0,   4,  16,  16,   16,   39,   55,   18,   9,   12,   4,    6,   -1,   -1,    3,    9,   -1,  -1,  -1,  -1,   2,  833} },
+      {"DDR4_2400U",  {2400,  0,   4,  17,  17,   17,   39,   56,   18,   9,   12,   4,    6,   -1,   -1,    3,    9,   -1,  -1,  -1,  -1,   2,  833} },
+      {"DDR4_2400T",  {2400,  0,   4,  18,  18,   18,   39,   57,   18,   9,   12,   4,    6,   -1,   -1,    3,    9,   -1,  -1,  -1,  -1,   2,  833} },
+      {"DDR4_2666T",  {2666,  0,   4,  17,  17,   17,   43,   60,   20,   10,  14,   4,    7,   -1,   -1,    4,    10,  -1,  -1,  -1,  -1,   2,  750} },
+      {"DDR4_2666U",  {2666,  0,   4,  18,  18,   18,   43,   61,   20,   10,  14,   4,    7,   -1,   -1,    4,    10,  -1,  -1,  -1,  -1,   2,  750} },
+      {"DDR4_2666V",  {2666,  0,   4,  19,  19,   19,   43,   62,   20,   10,  14,   4,    7,   -1,   -1,    4,    10,  -1,  -1,  -1,  -1,   2,  750} },
+      {"DDR4_2666W",  {2666,  0,   4,  20,  20,   20,   43,   63,   20,   10,  14,   4,    7,   -1,   -1,    4,    10,  -1,  -1,  -1,  -1,   2,  750} },
+      {"DDR4_2933V",  {2933,  0,   4,  19,  19,   19,   47,   66,   22,   11,  16,   4,    8,   -1,   -1,    4,    11,  -1,  -1,  -1,  -1,   2,  682} },
+      {"DDR4_2933W",  {2933,  0,   4,  20,  20,   20,   47,   67,   22,   11,  16,   4,    8,   -1,   -1,    4,    11,  -1,  -1,  -1,  -1,   2,  682} },
+      {"DDR4_2933Y",  {2933,  0,   4,  21,  21,   21,   47,   68,   22,   11,  16,   4,    8,   -1,   -1,    4,    11,  -1,  -1,  -1,  -1,   2,  682} },
+      {"DDR4_2933AA", {2933,  0,   4,  22,  22,   22,   47,   69,   22,   11,  16,   4,    8,   -1,   -1,    4,    11,  -1,  -1,  -1,  -1,   2,  682} },
+      {"DDR4_3200W",  {3200,  0,   4,  20,  20,   20,   52,   72,   24,   12,  16,   4,    8,   -1,   -1,    4,    12,  -1,  -1,  -1,  -1,   2,  625} },
+      {"DDR4_3200AA", {3200,  0,   4,  22,  22,   22,   52,   74,   24,   12,  16,   4,    8,   -1,   -1,    4,    12,  -1,  -1,  -1,  -1,   2,  625} },
+      {"DDR4_3200AC", {3200,  0,   4,  24,  24,   24,   52,   76,   24,   12,  16,   4,    8,   -1,   -1,    4,    12,  -1,  -1,  -1,  -1,   2,  625} },
+
+      {"DDR4_2400R_AL16", {2400,  16,   4,  16,  16,   16,   39,   55,   18,   9,   12,   4,    6,   -1,   -1,    3,    9,   -1,  -1,  -1,  -1,   2,  833} },
    };
 
   /************************************************
@@ -118,6 +120,7 @@ class DDR4VRR : public IDRAM, public Implementation {
     inline static constexpr ImplDef m_timings = {
       "rate", 
       "nBL", "nCL", "nRCD", "nRP", "nRAS", "nRC", "nWR", "nRTP", "nCWL",
+      "nAL",
       "nCCDS", "nCCDL",
       "nRRDS", "nRRDL",
       "nWTRS", "nWTRL",
@@ -347,8 +350,8 @@ class DDR4VRR : public IDRAM, public Implementation {
       m_timing_vals("nRFC")  = JEDEC_rounding(tRFC_TABLE[0][density_id], tCK_ps);
       m_timing_vals("nREFI") = JEDEC_rounding(tREFI_BASE, tCK_ps);
 
-      m_VRR_radius = param<int>("VRR_radius").desc("The number of rows to refresh on each side").default_val(2);
-      const int nVRR_base_ns = 70;   // Taken from DDR5 DRFM
+      m_VRR_radius = param<int>("VRR_radius").desc("The number of rows to refresh on each side").default_val(3);
+      const int nVRR_base_ns = 110;   // Taken from DDR5 DRFM
       m_timing_vals("nVRR") = JEDEC_rounding(nVRR_base_ns * m_VRR_radius, tCK_ps);
 
       // Overwrite timing parameters with any user-provided value
@@ -373,7 +376,7 @@ class DDR4VRR : public IDRAM, public Implementation {
       }      
 
       // Set read latency
-      m_read_latency = m_timing_vals("nCL") + m_timing_vals("nBL");
+      m_read_latency = m_timing_vals("nCL") + m_timing_vals("nBL") + m_timing_vals("nAL");
 
       // Populate the timing constraints
       #define V(timing) (m_timing_vals(timing))
@@ -423,13 +426,13 @@ class DDR4VRR : public IDRAM, public Implementation {
           /*** Bank ***/ 
           {.level = "bank", .preceding = {"ACT"}, .following = {"ACT", "VRR"}, .latency = V("nRC")},  
           {.level = "bank", .preceding = {"ACT", "VRR"}, .following = {"ACT", "VRR"}, .latency = V("nVRR")},  
-          {.level = "bank", .preceding = {"ACT"}, .following = {"RD", "RDA", "WR", "WRA"}, .latency = V("nRCD")},  
+          {.level = "bank", .preceding = {"ACT"}, .following = {"RD", "RDA", "WR", "WRA"}, .latency = V("nRCD") - V("nAL")},  
           {.level = "bank", .preceding = {"ACT"}, .following = {"PRE"}, .latency = V("nRAS")},  
           {.level = "bank", .preceding = {"PRE"}, .following = {"ACT", "VRR"}, .latency = V("nRP")},  
-          {.level = "bank", .preceding = {"RD"},  .following = {"PRE"}, .latency = V("nRTP")},  
-          {.level = "bank", .preceding = {"WR"},  .following = {"PRE"}, .latency = V("nCWL") + V("nBL") + V("nWR")},  
-          {.level = "bank", .preceding = {"RDA"}, .following = {"ACT", "VRR"}, .latency = V("nRTP") + V("nRP")},  
-          {.level = "bank", .preceding = {"WRA"}, .following = {"ACT", "VRR"}, .latency = V("nCWL") + V("nBL") + V("nWR") + V("nRP")},  
+          {.level = "bank", .preceding = {"RD"},  .following = {"PRE"}, .latency = V("nRTP") + V("nAL")},  
+          {.level = "bank", .preceding = {"WR"},  .following = {"PRE"}, .latency = V("nCWL") + V("nBL") + V("nWR") + V("nAL")},  
+          {.level = "bank", .preceding = {"RDA"}, .following = {"ACT", "VRR"}, .latency = V("nRTP") + V("nAL") + V("nRP")},  
+          {.level = "bank", .preceding = {"WRA"}, .following = {"ACT", "VRR"}, .latency = V("nCWL") + V("nBL") + V("nWR") + V("nAL") + V("nRP")},  
         }
       );
       #undef V

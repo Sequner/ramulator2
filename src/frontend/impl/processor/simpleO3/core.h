@@ -41,7 +41,7 @@ class SimpleO3Core : public Clocked<SimpleO3Core> {
     friend class SimpleO3Core;
     private:
       int m_ipc = 4;          // How many instructions we can retire in a cycle
-      int m_depth = 128;      // How many inflight instructions we can keep track of
+      int m_depth = 1024;      // How many inflight instructions we can keep track of
 
       int m_load = 0;         // The current load
       int m_head_idx = 0;     // Head index. New instructions are inserted at the head index.
@@ -51,7 +51,7 @@ class SimpleO3Core : public Clocked<SimpleO3Core> {
       std::vector<Addr_t> m_addr_list;    // Which address is each LD/ST instruction targeting? TODO: Perf. optimization with unordered map?
 
     public:
-      InstWindow(int ipc = 4, int depth = 128);      
+      InstWindow(int ipc = 4, int depth = 1024);      
 
 
       bool   is_full();

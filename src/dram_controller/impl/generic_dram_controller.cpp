@@ -104,6 +104,8 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
       ReqBuffer* buffer = nullptr;
       bool request_found = schedule_request(req_it, buffer);
 
+      // Only cache: observe reads/writes, update table, priority queue for write-backs
+      // Cache + Mithril: observe all reqs, act -> save row id, read/write -> check miss, call mithril on 1st miss, clear row id on pre
       // 3. Update all plugins
       for (auto plugin : m_plugins) {
         plugin->update(request_found, req_it);

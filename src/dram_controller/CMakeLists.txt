@@ -6,6 +6,7 @@ target_sources(
   scheduler.h 
   plugin.h
   refresh.h
+  impl/plugin/mscache.h
 
   impl/dummy_controller.cpp
   impl/generic_dram_controller.cpp
@@ -23,6 +24,9 @@ target_sources(
   impl/plugin/twice.cpp
   impl/plugin/hydra.cpp
   impl/plugin/rrs.cpp
+  impl/plugin/mithril.cpp
+  impl/plugin/mscache.cpp
+  impl/plugin/mscache_defense.cpp
 
   )
 
