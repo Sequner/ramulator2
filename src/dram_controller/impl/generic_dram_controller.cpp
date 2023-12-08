@@ -45,7 +45,7 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
     void setup(IFrontEnd* frontend, IMemorySystem* memory_system) override {
       m_dram = memory_system->get_ifce<IDRAM>();
       m_row_addr_idx = m_dram->m_levels("row");
-      m_priority_buffer.max_size = 512*3 + 32;
+      m_priority_buffer.max_size = 512*128 + 32;
     };
 
     bool send(Request& req) override {

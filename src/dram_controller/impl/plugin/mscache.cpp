@@ -3,18 +3,22 @@
 
 namespace Ramulator {
 
-MSCache::MSCache(int latency, int num_entries, int associativity, int col_size):
+MSCache::MSCache(int latency, int num_entries, int associativity, int col_size, bool wb_en, int wl_size):
                  m_latency(latency), m_num_entries(num_entries), m_associativity(associativity), 
-                 m_col_bits(calc_log2(col_size))
+                 m_col_bits(calc_log2(col_size)), m_wb_en(wb_en), m_wl_size(wl_size)
 {
   m_set_size = num_entries / m_associativity;
   m_index_mask = m_set_size - 1;
   m_index_offset = 0;
   m_tag_offset = calc_log2(m_set_size) + m_index_offset;
+  m_wl_en = m_wl_size > 0;
 };
 
 std::vector<std::pair<int,int>> MSCache::get_dirty() {
   std::vector<std::pair<int,int>> dirty_list;
+  if (!m_wb_en)
+    return dirty_list;
+
   for (auto& dirty_it: m_dirty_entries) {
     if (dirty_it.second == 1) {
       int addr = dirty_it.first;
@@ -22,70 +26,116 @@ std::vector<std::pair<int,int>> MSCache::get_dirty() {
       dirty_it.second = 0;
     }
   }
+  m_num_dirty = 0;
 
   return dirty_list;
 }
 
-void MSCache::send_access(int col_id, bool is_write) {
-  int addr = get_addr(col_id);
-  CacheSet_t& set = get_set(addr);
+void MSCache::send_REF(int row_id) {
+  if (!m_wl_en)
+    return;
+  // if the row in the white list, refresh the list
+  if (check_white_list_hit(row_id)) {
+    auto line_it = m_white_list.mapping[row_id];
+    m_white_list.rows.erase(line_it);
+  }
+  else {
+    if (m_white_list.rows.size() == m_wl_size) {
+      m_white_list.mapping.erase(row_id);
+      m_white_list.rows.pop_front();
+    }
+  }
+  m_white_list.rows.push_back(row_id);
+  m_white_list.mapping[row_id] = --m_white_list.rows.end();
+}
 
-  // If request is in dirty buffer
+void MSCache::send_access(int col_id, bool is_write) {
+  assert(m_activated_row > -1);
+  int addr = get_addr(col_id);
+  CacheSet& set = get_set(addr);
+
+  // If write-through, set status as miss to issue DRAM ACT
+  if (!m_wb_en && is_write) {
+    change_status(is_write);
+    return;
+  }
+
+  // Only when write-back is on, if request is in dirty buffer
   if (auto dirty_it = m_dirty_entries.find(addr); dirty_it != m_dirty_entries.end()) {
     // Writing back entry to DRAM
     if (dirty_it->second == 0 && is_write) {
-      m_dirty_entries.erase(addr);
-    } else if (dirty_it->second == 1) {
-      auto newline_it = allocate_line(set, addr);
-      newline_it->dirty = 1;
-      m_dirty_entries.erase(addr);
+      change_status(is_write);
+    } 
+    // Hit to the dirty buffer, hence, return back to cache
+    else if (dirty_it->second == 1) {
+      Line new_line = {addr, get_tag(addr), 1};
+      allocate_line(set, new_line);
     }
-
+    m_dirty_entries.erase(addr);
     return;
   }
 
   // Check set for hit / miss
-  if (auto line_it = check_set_hit(set, addr); line_it != set.end()) {
-    // Cache hit
-    // Update LRU
-    set.push_back({addr, get_tag(addr), line_it->dirty || is_write});
-    set.erase(line_it);
-  } else {
-    // Cache miss
-    auto newline_it = allocate_line(set, addr);
-    newline_it->dirty = is_write;
+  int addr_tag = get_tag(addr);
+  bool is_hit = check_set_hit(set, addr_tag);
+
+  // If the row is in the white list
+  if (!m_wl_en || check_white_list_hit(m_activated_row)) {
+    if (is_hit) {
+      // Cache hit
+      // Update LRU
+      auto line_it = set.set_mapping[get_tag(addr)];
+      Line new_line = {addr, addr_tag, line_it->dirty || is_write};
+      set.set_lines.push_back(new_line);
+      set.set_mapping[addr_tag] = --set.set_lines.end();
+      set.set_lines.erase(line_it);
+    } else {
+      // Cache miss
+
+      // If read miss and current status is hit, set to miss
+      change_status(is_write);
+
+      Line new_line = {addr, addr_tag, is_write};
+      allocate_line(set, new_line);
+    }
   }
+  // If the row is not on the white list and cache miss, change status
+  else { 
+    if (!is_hit)
+      change_status(is_write);
+  }
+  
 }
 
-MSCache::CacheSet_t& MSCache::get_set(Addr_t addr) {
+MSCache::CacheSet& MSCache::get_set(Addr_t addr) {
   int set_index = get_index(addr);
   if (m_cache_sets.find(set_index) == m_cache_sets.end()) {
-    m_cache_sets.insert(make_pair(set_index, std::list<Line>()));
+    m_cache_sets.insert(std::make_pair(set_index, MSCache::CacheSet()));
   }
   return m_cache_sets[set_index];
 }
 
-MSCache::CacheSet_t::iterator MSCache::allocate_line(CacheSet_t& set, Addr_t addr) {
+void MSCache::allocate_line(CacheSet& set, Line new_line) {
   // Check if we need to evict any line
-  if (need_eviction(set, addr)) {
-    evict_line(set, set.begin());
+  if (need_eviction(set, new_line.tag)) {
+    evict_line(set);
   }
 
   // Allocate new cache line and return an iterator to it
-  set.push_back({addr, get_tag(addr)});
-  return --set.end();
+  set.set_lines.push_back(new_line);
+  set.set_mapping[new_line.tag] = --set.set_lines.end();
 }
 
-bool MSCache::need_eviction(const CacheSet_t& set, Addr_t addr) {
-  if (std::find_if(set.begin(), set.end(), 
-            [addr, this](Line l) { return (get_tag(addr) == l.tag); }) 
-      != set.end()) {
+bool MSCache::need_eviction(CacheSet& set, int tag) {
+  if (std::find_if(set.set_lines.begin(), set.set_lines.end(), 
+            [tag, this](Line l) { return (tag == l.tag); }) 
+      != set.set_lines.end()) {
     // Due to MSHR, the program can't reach here. Just for checking
     assert(false);
     return false;
   } 
   else {
-    if (set.size() < m_associativity) {
+    if (set.set_lines.size() < m_associativity) {
       return false;
     } else {
       return true;
@@ -93,17 +143,38 @@ bool MSCache::need_eviction(const CacheSet_t& set, Addr_t addr) {
   }
 }
 
-void MSCache::evict_line(CacheSet_t& set, CacheSet_t::iterator victim_it) {
+void MSCache::evict_line(CacheSet& set) {
+  auto victim_it = set.set_lines.begin();
   // Add addr to dirty buffer if victim line is dirty
   if (victim_it->dirty) {
+    m_num_dirty += 1;
     m_dirty_entries.insert(std::make_pair(victim_it->addr, 1));
   }
 
-  set.erase(victim_it);
+  set.set_mapping.erase(victim_it->tag);
+  set.set_lines.pop_front();
 }
 
-MSCache::CacheSet_t::iterator MSCache::check_set_hit(CacheSet_t& set, Addr_t addr) {
-  return std::find_if(set.begin(), set.end(), [addr, this](Line l){return (l.tag == get_tag(addr));});
+bool MSCache::check_set_hit(CacheSet& set, int tag) {
+  return set.set_mapping.contains(tag);
+}
+
+bool MSCache::check_white_list_hit(int row_id) {
+  return m_white_list.mapping.contains(m_activated_row);
+}
+
+// Read cache status (hit/miss) and reset it
+int MSCache::get_status() {
+  int res = m_status;
+  m_status = 0;
+  return res;
+}
+
+void MSCache::change_status(bool is_write) {
+  if (m_status == 0)
+    m_status = 1 + is_write;
+  else if ((m_status == 1 && is_write) || (m_status == 2 && !is_write))
+    m_status = 3;
 }
 
 }        // namespace Ramulator

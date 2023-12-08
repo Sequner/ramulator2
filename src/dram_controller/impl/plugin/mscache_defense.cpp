@@ -14,6 +14,7 @@ class MSCache_Defense : public IControllerPlugin, public Implementation {
     int m_num_cache_entries = -1;
     int m_associativity = -1;
     int m_num_writeback_requests = 0;
+    bool m_write_back_en = false;
 
     bool m_is_debug = false;
 
@@ -37,6 +38,7 @@ class MSCache_Defense : public IControllerPlugin, public Implementation {
     int m_RDA_id = -1;
     int m_WRA_id = - 1;
     int m_PRE_id = -1;
+    int m_VRR_id = -1;
 
     // per bank memory-side cache
     std::vector<MSCache> m_cache;
@@ -49,6 +51,8 @@ class MSCache_Defense : public IControllerPlugin, public Implementation {
     void init() override { 
       m_num_cache_entries = param<int>("num_cache_entries").required();
       m_associativity = param<int>("associativity").required();
+      m_write_back_en = param<bool>("write_back_en").default_val(true);
+
       m_is_debug = param<bool>("debug").default_val(false);
       register_stat(m_num_writeback_requests).name("total_num_writeback_requests");
     };
@@ -67,6 +71,7 @@ class MSCache_Defense : public IControllerPlugin, public Implementation {
       m_RDA_id = m_dram->m_commands("RDA");
       m_WRA_id = m_dram->m_commands("WRA");
       m_PRE_id = m_dram->m_commands("PRE");
+      m_VRR_id = m_dram->m_commands("VRR");
 
       m_rank_level = m_dram->m_levels("rank");
       m_bankgroup_level = m_dram->m_levels("bankgroup");
@@ -104,7 +109,7 @@ class MSCache_Defense : public IControllerPlugin, public Implementation {
       }
       // Initialize bank caches
       for (int i = 0; i < m_num_banks_per_rank * m_num_ranks; i++) {
-        m_cache.push_back(MSCache(0, m_num_cache_entries, m_associativity, 64));
+        m_cache.push_back(MSCache(0, m_num_cache_entries, m_associativity, 64, m_write_back_en, 0));
       }
     };
 
@@ -156,6 +161,9 @@ class MSCache_Defense : public IControllerPlugin, public Implementation {
       if (cmd_id == m_PRE_id) {
         return "PRE";
       }
+      if (cmd_id == m_VRR_id) {
+        return "VRR";
+      }
       return "";
     }
 
@@ -179,6 +187,8 @@ class MSCache_Defense : public IControllerPlugin, public Implementation {
         m_cache[flat_bank_id].send_PRE();
         
         clear_dirty_buffer(flat_bank_id);        
+      } else if (req_it->command == m_VRR_id) {
+        m_cache[flat_bank_id].send_REF(req_it->addr_vec[m_row_level]);
       }
 
       if (m_is_debug) {

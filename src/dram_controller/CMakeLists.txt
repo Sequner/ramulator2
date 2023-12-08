@@ -27,6 +27,7 @@ target_sources(
   impl/plugin/mithril.cpp
   impl/plugin/mscache.cpp
   impl/plugin/mscache_defense.cpp
+  impl/plugin/mithrilcache.cpp
 
   )
 
