@@ -36,6 +36,7 @@ class MSCache {
     int m_wl_size = 0;    // # of entries in white-list, if 0 then disabled
 
     DirtyList_t m_dirty_entries;
+    std::unordered_map<int, int> m_dirty_words_per_row;
 
     int m_activated_row = -1;
     int m_col_bits = -1;

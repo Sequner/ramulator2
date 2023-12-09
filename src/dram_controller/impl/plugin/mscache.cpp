@@ -16,32 +16,37 @@ MSCache::MSCache(int latency, int num_entries, int associativity, int col_size, 
 
 std::vector<std::pair<int,int>> MSCache::get_dirty() {
   std::vector<std::pair<int,int>> dirty_list;
-  if (!m_wb_en)
+  if (!m_wb_en) {
     return dirty_list;
+  }
+
+  if (m_num_dirty < 64) {
+    return dirty_list;
+  }
 
   for (auto& dirty_it: m_dirty_entries) {
+    int row_id = get_row(dirty_it.first);
     if (dirty_it.second == 1) {
       int addr = dirty_it.first;
-      dirty_list.push_back(std::make_pair(get_row(addr), get_col(addr)));
+      dirty_list.push_back(std::make_pair(row_id, get_col(addr)));
       dirty_it.second = 0;
     }
   }
-  m_num_dirty = 0;
 
+  m_num_dirty = 0;
   return dirty_list;
 }
 
 void MSCache::send_REF(int row_id) {
-  if (!m_wl_en)
-    return;
   // if the row in the white list, refresh the list
   if (check_white_list_hit(row_id)) {
     auto line_it = m_white_list.mapping[row_id];
     m_white_list.rows.erase(line_it);
   }
   else {
-    if (m_white_list.rows.size() == m_wl_size) {
-      m_white_list.mapping.erase(row_id);
+    if (m_white_list.rows.size() >= m_wl_size) {
+      auto victim = m_white_list.rows.front();
+      m_white_list.mapping.erase(victim);
       m_white_list.rows.pop_front();
     }
   }
@@ -50,7 +55,6 @@ void MSCache::send_REF(int row_id) {
 }
 
 void MSCache::send_access(int col_id, bool is_write) {
-  assert(m_activated_row > -1);
   int addr = get_addr(col_id);
   CacheSet& set = get_set(addr);
 
@@ -61,50 +65,44 @@ void MSCache::send_access(int col_id, bool is_write) {
   }
 
   // Only when write-back is on, if request is in dirty buffer
-  if (auto dirty_it = m_dirty_entries.find(addr); dirty_it != m_dirty_entries.end()) {
-    // Writing back entry to DRAM
-    if (dirty_it->second == 0 && is_write) {
-      change_status(is_write);
-    } 
-    // Hit to the dirty buffer, hence, return back to cache
-    else if (dirty_it->second == 1) {
-      Line new_line = {addr, get_tag(addr), 1};
-      allocate_line(set, new_line);
+  if (m_wb_en) {
+    if (auto dirty_it = m_dirty_entries.find(addr); dirty_it != m_dirty_entries.end()) {
+      // Writing back entry to DRAM
+      if (dirty_it->second == 0 && is_write) {
+        change_status(is_write);
+        m_dirty_entries.erase(dirty_it);
+      }
+
+      return;
     }
-    m_dirty_entries.erase(addr);
-    return;
   }
 
   // Check set for hit / miss
   int addr_tag = get_tag(addr);
-  bool is_hit = check_set_hit(set, addr_tag);
 
-  // If the row is in the white list
-  if (!m_wl_en || check_white_list_hit(m_activated_row)) {
-    if (is_hit) {
-      // Cache hit
-      // Update LRU
-      auto line_it = set.set_mapping[get_tag(addr)];
-      Line new_line = {addr, addr_tag, line_it->dirty || is_write};
-      set.set_lines.push_back(new_line);
-      set.set_mapping[addr_tag] = --set.set_lines.end();
-      set.set_lines.erase(line_it);
-    } else {
-      // Cache miss
-
+  // Cache hit
+  if (check_set_hit(set, addr_tag)) {
+    // Cache hit
+    // Update LRU
+    auto line_it = set.set_mapping[get_tag(addr)];
+    Line new_line = {addr, addr_tag, line_it->dirty || is_write};
+    set.set_lines.push_back(new_line);
+    set.set_mapping[addr_tag] = --set.set_lines.end();
+    set.set_lines.erase(line_it);
+  }
+  // Cache miss
+  else {
+    if (!m_wl_en || check_white_list_hit(m_activated_row)) {
       // If read miss and current status is hit, set to miss
-      change_status(is_write);
+      change_status(is_write && !m_wb_en);
 
       Line new_line = {addr, addr_tag, is_write};
       allocate_line(set, new_line);
     }
+    else {
+      change_status(is_write); // write-through, no allocate
+    }
   }
-  // If the row is not on the white list and cache miss, change status
-  else { 
-    if (!is_hit)
-      change_status(is_write);
-  }
-  
 }
 
 MSCache::CacheSet& MSCache::get_set(Addr_t addr) {
@@ -160,7 +158,7 @@ bool MSCache::check_set_hit(CacheSet& set, int tag) {
 }
 
 bool MSCache::check_white_list_hit(int row_id) {
-  return m_white_list.mapping.contains(m_activated_row);
+  return m_white_list.mapping.contains(row_id);
 }
 
 // Read cache status (hit/miss) and reset it

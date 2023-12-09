@@ -15,7 +15,8 @@ class MithrilCache : public IControllerPlugin, public Implementation {
     int m_associativity = -1;
     int m_num_writeback_requests = 0;
     bool m_write_back_en = false;
-    bool m_white_list_size = 0;
+    int m_white_list_size = 0;
+    bool m_white_list_en = false;
 
     int m_write_miss_acts = 0;
     int m_read_miss_acts = 0;
@@ -147,6 +148,7 @@ class MithrilCache : public IControllerPlugin, public Implementation {
         }
       }
       // Initialize bank caches
+      m_white_list_en = m_white_list_size > 0;
       for (int i = 0; i < m_num_banks_per_rank * m_num_ranks; i++) {
         m_cache.push_back(MSCache(0, m_num_cache_entries, m_associativity, 64, m_write_back_en, m_white_list_size));
       }
@@ -301,10 +303,6 @@ class MithrilCache : public IControllerPlugin, public Implementation {
     // Clear dirty buffer of the cache
     void clear_dirty_buffer(int bank_id) {
       std::vector<std::pair<int,int>> dirty_entries = m_cache[bank_id].get_dirty();
-      // std::ranges::sort(dirty_entries, [](const std::pair<int,int> &a, const std::pair<int,int> &b)
-      // {
-      //   return a.first < b.first;
-      // });
       AddrVec_t addr_vec = m_bank_mapping[bank_id];
       for (auto& entry_it: dirty_entries) {
         addr_vec[m_row_level] = entry_it.first;
@@ -373,9 +371,9 @@ class MithrilCache : public IControllerPlugin, public Implementation {
             m_mix_miss_acts += 1;      
         }
       } else if (req_it->command == m_VRR_id) {
-        m_cache[flat_bank_id].send_REF(req_it->addr_vec[m_row_level]);
+        if (m_white_list_en)
+          m_cache[flat_bank_id].send_REF(req_it->addr_vec[m_row_level]);
       }
-
       if (m_is_debug) {
         std::string req_name = get_cmd_name(req_it->command);
         if (req_name.size() > 0) {
