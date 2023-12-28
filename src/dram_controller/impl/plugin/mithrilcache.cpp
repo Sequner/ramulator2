@@ -15,8 +15,6 @@ class MithrilCache : public IControllerPlugin, public Implementation {
     int m_associativity = -1;
     int m_num_writeback_requests = 0;
     bool m_write_back_en = false;
-    int m_white_list_size = 0;
-    bool m_white_list_en = false;
 
     int m_write_miss_acts = 0;
     int m_read_miss_acts = 0;
@@ -77,7 +75,6 @@ class MithrilCache : public IControllerPlugin, public Implementation {
       m_num_cache_entries = param<int>("num_cache_entries").required();
       m_associativity = param<int>("associativity").required();
       m_write_back_en = param<bool>("write_back_en").default_val(true);
-      m_white_list_size = param<int>("white_list_size").default_val(0);
 
       // Mithril+ configs
       m_num_table_entries = param<int>("num_table_entries").required();
@@ -148,9 +145,8 @@ class MithrilCache : public IControllerPlugin, public Implementation {
         }
       }
       // Initialize bank caches
-      m_white_list_en = m_white_list_size > 0;
       for (int i = 0; i < m_num_banks_per_rank * m_num_ranks; i++) {
-        m_cache.push_back(MSCache(0, m_num_cache_entries, m_associativity, 64, m_write_back_en, m_white_list_size));
+        m_cache.push_back(MSCache(0, m_num_cache_entries, m_associativity, 64, m_write_back_en));
       }
 
       // Initialize bank act count tables
@@ -201,8 +197,8 @@ class MithrilCache : public IControllerPlugin, public Implementation {
         int minRow = m_min_ptr[flat_bank_id];
         return m_activation_count_table[flat_bank_id][minRow];
       }
-      // return 0 if counter table is not full
-      return 0;
+      // return 1 if counter table is not full
+      return 1;
     }
 
     // Perform RFM action for Mithril+
@@ -266,7 +262,7 @@ class MithrilCache : public IControllerPlugin, public Implementation {
         else {
           int minRowCount = getMinCount(flat_bank_id);
           m_activation_count_table[flat_bank_id].erase(minRowId); // Delete prev min row
-          m_activation_count_table[flat_bank_id][row_id] = minRowCount; // Replace it with current row
+          m_activation_count_table[flat_bank_id][row_id] = minRowCount + 1; // Replace it with current row
         }
 
         // Set minptr to newly added row
@@ -370,10 +366,8 @@ class MithrilCache : public IControllerPlugin, public Implementation {
           else
             m_mix_miss_acts += 1;      
         }
-      } else if (req_it->command == m_VRR_id) {
-        if (m_white_list_en)
-          m_cache[flat_bank_id].send_REF(req_it->addr_vec[m_row_level]);
       }
+
       if (m_is_debug) {
         std::string req_name = get_cmd_name(req_it->command);
         if (req_name.size() > 0) {

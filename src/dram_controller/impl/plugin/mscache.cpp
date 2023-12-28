@@ -3,15 +3,14 @@
 
 namespace Ramulator {
 
-MSCache::MSCache(int latency, int num_entries, int associativity, int col_size, bool wb_en, int wl_size):
+MSCache::MSCache(int latency, int num_entries, int associativity, int col_size, bool wb_en):
                  m_latency(latency), m_num_entries(num_entries), m_associativity(associativity), 
-                 m_col_bits(calc_log2(col_size)), m_wb_en(wb_en), m_wl_size(wl_size)
+                 m_col_bits(calc_log2(col_size)), m_wb_en(wb_en)
 {
   m_set_size = num_entries / m_associativity;
   m_index_mask = m_set_size - 1;
   m_index_offset = 0;
   m_tag_offset = calc_log2(m_set_size) + m_index_offset;
-  m_wl_en = m_wl_size > 0;
 };
 
 std::vector<std::pair<int,int>> MSCache::get_dirty() {
@@ -20,8 +19,16 @@ std::vector<std::pair<int,int>> MSCache::get_dirty() {
     return dirty_list;
   }
 
-  if (m_num_dirty < 64) {
+  if (m_num_dirty < 1) {
     return dirty_list;
+  }
+
+  std::unordered_map<int, std::vector<std::list<Line>::iterator>> same_row_lines;
+  for (auto& set_it: m_cache_sets) {
+    for (auto line_it = set_it.second.set_lines.begin(); line_it != set_it.second.set_lines.end(); ++line_it) {
+      if (line_it->dirty)
+        same_row_lines[get_row(line_it->addr)].push_back(line_it);
+    }
   }
 
   for (auto& dirty_it: m_dirty_entries) {
@@ -30,28 +37,18 @@ std::vector<std::pair<int,int>> MSCache::get_dirty() {
       int addr = dirty_it.first;
       dirty_list.push_back(std::make_pair(row_id, get_col(addr)));
       dirty_it.second = 0;
+
+      if (auto rowvec_it = same_row_lines.find(row_id); rowvec_it != same_row_lines.end()) {
+        for (auto& line_it: rowvec_it->second) {
+          dirty_list.push_back(std::make_pair(row_id, get_col(line_it->addr)));
+          line_it->dirty = 0;
+        }
+      }
     }
   }
 
   m_num_dirty = 0;
   return dirty_list;
-}
-
-void MSCache::send_REF(int row_id) {
-  // if the row in the white list, refresh the list
-  if (check_white_list_hit(row_id)) {
-    auto line_it = m_white_list.mapping[row_id];
-    m_white_list.rows.erase(line_it);
-  }
-  else {
-    if (m_white_list.rows.size() >= m_wl_size) {
-      auto victim = m_white_list.rows.front();
-      m_white_list.mapping.erase(victim);
-      m_white_list.rows.pop_front();
-    }
-  }
-  m_white_list.rows.push_back(row_id);
-  m_white_list.mapping[row_id] = --m_white_list.rows.end();
 }
 
 void MSCache::send_access(int col_id, bool is_write) {
@@ -92,16 +89,11 @@ void MSCache::send_access(int col_id, bool is_write) {
   }
   // Cache miss
   else {
-    if (!m_wl_en || check_white_list_hit(m_activated_row)) {
-      // If read miss and current status is hit, set to miss
-      change_status(is_write && !m_wb_en);
+    // If read miss and current status is hit, set to miss
+    change_status(is_write && !m_wb_en);
 
-      Line new_line = {addr, addr_tag, is_write};
-      allocate_line(set, new_line);
-    }
-    else {
-      change_status(is_write); // write-through, no allocate
-    }
+    Line new_line = {addr, addr_tag, is_write};
+    allocate_line(set, new_line);
   }
 }
 
@@ -132,13 +124,11 @@ bool MSCache::need_eviction(CacheSet& set, int tag) {
     assert(false);
     return false;
   } 
-  else {
-    if (set.set_lines.size() < m_associativity) {
-      return false;
-    } else {
-      return true;
-    }
+
+  if (set.set_lines.size() < m_associativity) {
+    return false;
   }
+  return true;
 }
 
 void MSCache::evict_line(CacheSet& set) {
@@ -155,10 +145,6 @@ void MSCache::evict_line(CacheSet& set) {
 
 bool MSCache::check_set_hit(CacheSet& set, int tag) {
   return set.set_mapping.contains(tag);
-}
-
-bool MSCache::check_white_list_hit(int row_id) {
-  return m_white_list.mapping.contains(row_id);
 }
 
 // Read cache status (hit/miss) and reset it

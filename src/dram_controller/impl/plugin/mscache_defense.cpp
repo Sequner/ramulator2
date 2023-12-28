@@ -109,7 +109,7 @@ class MSCache_Defense : public IControllerPlugin, public Implementation {
       }
       // Initialize bank caches
       for (int i = 0; i < m_num_banks_per_rank * m_num_ranks; i++) {
-        m_cache.push_back(MSCache(0, m_num_cache_entries, m_associativity, 64, m_write_back_en, 0));
+        m_cache.push_back(MSCache(0, m_num_cache_entries, m_associativity, 64, m_write_back_en));
       }
     };
 
@@ -187,8 +187,6 @@ class MSCache_Defense : public IControllerPlugin, public Implementation {
         m_cache[flat_bank_id].send_PRE();
         
         clear_dirty_buffer(flat_bank_id);        
-      } else if (req_it->command == m_VRR_id) {
-        m_cache[flat_bank_id].send_REF(req_it->addr_vec[m_row_level]);
       }
 
       if (m_is_debug) {

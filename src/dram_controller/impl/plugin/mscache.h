@@ -15,11 +15,6 @@ class MSCache {
     bool dirty = false;
   };
 
-  struct WhiteList {
-    std::list<int> rows; // LRU queue for the rows in white list. The head of the list is the least-recently-activated rows.
-    std::unordered_map<int, std::list<int>::iterator> mapping; // tag to white row pointer
-  };
-
   struct CacheSet {
     std::list<Line> set_lines; // LRU queue for the set. The head of the list is the least-recently-used way.
     std::unordered_map<int, std::list<Line>::iterator> set_mapping; // tag to cache line pointer
@@ -29,11 +24,8 @@ class MSCache {
     using DirtyList_t = std::unordered_map<Addr_t, int>;      // Dirty buffer
 
     std::unordered_map<int, CacheSet> m_cache_sets;
-    WhiteList m_white_list;
 
     bool m_wb_en = false; // write-back enabled?
-    bool m_wl_en = false;
-    int m_wl_size = 0;    // # of entries in white-list, if 0 then disabled
 
     DirtyList_t m_dirty_entries;
     std::unordered_map<int, int> m_dirty_words_per_row;
@@ -58,10 +50,10 @@ class MSCache {
     int m_index_offset;
 
   public:
-    MSCache(int latency, int num_entries, int associativity, int col_size, bool wb_en, int wl_size);
+    MSCache(int latency, int num_entries, int associativity, int col_size, bool wb_en);
     
     void send_REF(int row_id);
-    void send_ACT(int row_id) { m_activated_row = row_id; };
+    void send_ACT(int row_id) { assert(m_activated_row == -1); m_activated_row = row_id; };
     void send_PRE()           { m_activated_row = -1; };
     void send_access(int col_id, bool is_write);
     int get_status();
@@ -78,7 +70,6 @@ class MSCache {
     bool need_eviction(CacheSet& set, int tag);
 
     bool check_set_hit(CacheSet& set, int tag);
-    bool check_white_list_hit(int row_id);
 
     void change_status(bool is_write);
 

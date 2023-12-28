@@ -20,6 +20,7 @@ class MithrilDDR4 : public IControllerPlugin, public Implementation {
     int m_rfm_threshold = -1;
     bool m_is_debug = false;
 
+    int m_ACT_id = -1;
     int m_VRR_req_id = -1;
 
     int m_channel_id = -1;
@@ -65,6 +66,7 @@ class MithrilDDR4 : public IControllerPlugin, public Implementation {
         throw ConfigurationError("MithrilDDR4 is not compatible with the DRAM implementation that does not have Victim-Row-Refresh (VRR) command!");
       }
 
+      m_ACT_id = m_dram->m_commands("ACT");
       m_VRR_req_id = m_dram->m_requests("victim-row-refresh");
 
       m_channel_id = m_ctrl->m_channel_id;
@@ -151,8 +153,8 @@ class MithrilDDR4 : public IControllerPlugin, public Implementation {
         int minRow = m_min_ptr[flat_bank_id];
         return m_activation_count_table[flat_bank_id][minRow];
       }
-      // return 0 if counter table is not full
-      return 0;
+      // return 1 if counter table is not full
+      return 1;
     }
 
     // Perform RFM action for Mithril+
@@ -190,7 +192,7 @@ class MithrilDDR4 : public IControllerPlugin, public Implementation {
         return;
 
       // If command is not ACT, skip
-      if (!(m_dram->m_command_meta(req_it->command).is_opening && m_dram->m_command_scopes(req_it->command) == m_row_level))
+      if (req_it->command != m_ACT_id)
         return;
 
       int flat_bank_id = getFlatBankId(req_it->addr_vec);
@@ -227,7 +229,7 @@ class MithrilDDR4 : public IControllerPlugin, public Implementation {
         else {
           int minRowCount = getMinCount(flat_bank_id);
           m_activation_count_table[flat_bank_id].erase(minRowId); // Delete prev min row
-          m_activation_count_table[flat_bank_id][row_id] = minRowCount; // Replace it with current row
+          m_activation_count_table[flat_bank_id][row_id] = minRowCount + 1; // Replace it with current row
         }
 
         // Set minptr to newly added row
